@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jr Football 26</title>
+    <style>
+        :root {
+            --bg: #1e1e24;
+            --panel: #2b2b36;
+            --text: #f0f0f5;
+            --accent: #4ade80;
+            --danger: #ef4444;
+            --border: #4b4b5c;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        #game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--panel);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .header {
+            background-color: #111;
+            padding: 15px 20px;
+            text-align: center;
+            border-bottom: 2px solid var(--accent);
+        }
+        .header h1 { margin: 0; font-size: 24px; color: var(--accent); }
+        .screen { display: none; padding: 20px; }
+        .active-screen { display: block; }
+        
+        button {
+            background-color: var(--accent);
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { opacity: 0.8; }
+        button:disabled { background-color: var(--border); cursor: not-allowed; }
+        
+        .setup-group { margin-bottom: 15px; }
+        select, input {
+            width: 100%; padding: 10px; margin-top: 5px;
+            background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px;
+        }
+
+        .stats-bar {
+            display: flex; justify-content: space-between;
+            background: #111; padding: 10px; border-radius: 4px; margin-bottom: 20px;
+        }
+
+        .tabs { display: flex; margin-bottom: 15px; border-bottom: 1px solid var(--border); }
+        .tab { 
+            padding: 10px 20px; cursor: pointer; 
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active { border-bottom: 2px solid var(--accent); color: var(--accent); font-weight: bold; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .player-row {
+            background: #111; padding: 10px; margin-bottom: 5px;
+            border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between;
+        }
+        .player-row:hover { background: #333; }
+        .player-details {
+            display: none; background: #222; padding: 10px; margin-bottom: 10px; border-radius: 4px; border-left: 3px solid var(--accent);
+        }
+
+        .phone-ui {
+            background: #111; border-radius: 10px; padding: 15px; min-height: 300px;
+        }
+        .chat-box {
+            height: 200px; overflow-y: auto; background: #000; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-family: monospace;
+        }
+        .chat-msg { margin-bottom: 8px; }
+        .msg-coach { color: var(--accent); text-align: right; }
+        .msg-player { color: #fff; text-align: left; }
+        
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: var(--panel); padding: 20px; border-radius: 8px; text-align: center; max-width: 400px; width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="header">
+        <h1 id="header-title">Jr Football 26</h1>
+    </div>
+
+    <div id="screen-menu" class="screen active-screen">
+        <div style="text-align: center; margin-top: 50px;">
+            <button onclick="startGameSetup()" style="font-size: 20px; padding: 15px 40px;">PLAY</button>
+            <br><br>
+            <button onclick="loadGame()">Load Saved Game</button>
+        </div>
+    </div>
+
+    <div id="screen-setup" class="screen">
+        <h2>Create Career</h2>
+        <div class="setup-group">
+            <label>State:</label>
+            <select id="setup-state"><option>California</option></select>
+        </div>
+        <div class="setup-group">
+            <label>Division:</label>
+            <select id="setup-youth"><option>14 Youth</option></select>
+        </div>
+        <div class="setup-group">
+            <label>Select Team (Roseville Jr League):</label>
+            <select id="setup-team">
+                <option value="0">Roseville Jr Vikings (7.0 OVR)</option>
+                <option value="1">Colfax Eagles (2.5 OVR)</option>
+                <option value="2">El Dorado (4.0 OVR)</option>
+                <option value="3">Bella Vista (6.0 OVR)</option>
+                <option value="4">Union Mine (1.5 OVR)</option>
+                <option value="5">Rio Linda (5.0 OVR)</option>
+                <option value="6">Bradshaw (3.5 OVR)</option>
+            </select>
+        </div>
+        <div class="setup-group">
+            <label>Coach Profile:</label>
+            <select id="setup-coach"><option>Pre-existing Coach</option></select>
+        </div>
+        <button onclick="finalizeSetup()">Start Career</button>
+    </div>
+
+    <div id="screen-hub" class="screen">
+        <div class="stats-bar">
+            <div id="hub-team-name">Team Name</div>
+            <div id="hub-skill">Skill: --/10</div>
+            <div id="hub-pop">Popularity: --</div>
+            <div id="hub-coach">Coaching: --/10</div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+            <div class="tab" onclick="switchTab('roster')">Roster</div>
+            <div class="tab" onclick="switchTab('phone')">Phone UI</div>
+        </div>
+
+        <div id="tab-dashboard" class="tab-content active" style="text-align: center;">
+            <h2 id="hub-week-display">Week 1</h2>
+            <h3 id="hub-opponent">Prep Week</h3>
+            <div id="record-display" style="margin-bottom: 20px;">Record: 0-0</div>
+            <button onclick="advanceWeek()" style="font-size: 18px; padding: 15px 30px;">Advance Week</button>
+            <button onclick="saveGame()" style="margin-top: 20px; display: block; margin-left: auto; margin-right: auto;">Save Progress</button>
+        </div>
+
+        <div id="tab-roster" class="tab-content">
+            <h3>Team Roster</h3>
+            <div id="roster-list"></div>
+        </div>
+
+        <div id="tab-phone" class="tab-content">
+            <div class="phone-ui">
+                <h3>Coach's Phone</h3>
+                <input type="text" id="phone-contact" placeholder="Type a player's first name to text..." oninput="checkPhoneName()">
+                <div id="phone-actions" style="margin-top:10px; display:none;">
+                    <button onclick="sendText('recruit')">Ask to recruit friends</button>
+                    <button onclick="sendText('role')">Discuss role on team</button>
+                    <button onclick="sendText('praise')">Praise them</button>
+                </div>
+                <div class="chat-box" id="chat-history" style="margin-top: 15px;">
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="game-modal" class="modal">
+    <div class="modal-content">
+        <h2 id="modal-title">Game Event</h2>
+        <p id="modal-desc"></p>
+        <button onclick="closeModal()">Continue</button>
+    </div>
+</div>
+
+<script>
+// --- Game Data & State ---
+const TEAMS = [
+    {id: 0, name: "Roseville Jr Vikings", baseSkill: 7.0},
+    {id: 1, name: "Colfax Eagles", baseSkill: 2.5},
+    {id: 2, name: "El Dorado", baseSkill: 4.0},
+    {id: 3, name: "Bella Vista", baseSkill: 6.0},
+    {id: 4, name: "Union Mine", baseSkill: 1.5},
+    {id: 5, name: "Rio Linda", baseSkill: 5.0},
+    {id: 6, name: "Bradshaw", baseSkill: 3.5}
+];
+
+const FIRST_NAMES = ["Jackson", "Liam", "Noah", "Aiden", "Caleb", "Mason", "Elijah", "Logan", "Ethan", "Tyler", "Jayden", "Marcus", "Wyatt", "Carter"];
+const LAST_NAMES = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson"];
+
+let state = {
+    teamId: 0,
+    week: 1, // 1-3 Prep, 4-11 Regular (incl. 1 bye), 12 Playoff, 13 Champ
+    schedule: [],
+    wins: 0, losses: 0,
+    roster: [],
+    skillRating: 5.0,
+    popularity: 500,
+    coachingRating: 5,
+    chatLog: []
+};
+
+// --- Utilities ---
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randName() { 
+    return {
+        first: FIRST_NAMES[randInt(0, FIRST_NAMES.length-1)], 
+        last: LAST_NAMES[randInt(0, LAST_NAMES.length-1)]
+    };
+}
+
+// --- Roster Generation ---
+const POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "LB", "DB"];
+function generatePlayer(posOverride = null) {
+    let name = randName();
+    let pos = posOverride || POSITIONS[randInt(0, POSITIONS.length-1)];
+    let p = { id: Math.random().toString(36).substr(2, 9), firstName: name.first, lastName: name.last, position: pos, attributes: {} };
+    
+    // Overall capped at 79, physicals up to 99
+    let baseOvr = randInt(40, 79);
+    p.overall = baseOvr;
+    
+    // Common physicals
+    p.attributes["Speed"] = randInt(40, 99);
+    p.attributes["Strength"] = randInt(40, 99);
+    p.attributes["Stamina"] = randInt(40, 99);
+
+    // Position Specifics
+    if (pos === "OL") {
+        p.attributes["Pass Block"] = randInt(20, 79);
+        p.attributes["Run Block"] = randInt(20, 79);
+    } else if (pos === "WR" || pos === "TE") {
+        p.attributes["Catching"] = randInt(20, 79);
+        p.attributes["Route Running"] = randInt(20, 79);
+        p.attributes["Jumping"] = randInt(40, 99);
+    } else if (pos === "QB") {
+        p.attributes["Throw Distance"] = randInt(20, 79);
+        p.attributes["Throw Accuracy"] = randInt(20, 79);
+        p.attributes["Play Action"] = randInt(20, 79);
+    } else if (pos === "DL") {
+        p.attributes["Bull Rush"] = randInt(20, 79);
+        p.attributes["Block Shedding"] = randInt(20, 79);
+        p.attributes["Blitz"] = randInt(20, 79);
+        p.attributes["Tackling"] = randInt(20, 79);
+    } else if (pos === "DB") {
+        p.attributes["Zone Coverage"] = randInt(20, 79);
+        p.attributes["Man Coverage"] = randInt(20, 79);
+        p.attributes["Tackling"] = randInt(20, 79);
+        p.attributes["Press"] = randInt(20, 79);
+        p.attributes["Discipline"] = randInt(20, 79);
+    } else if (pos === "LB") {
+        p.attributes["Tackling"] = randInt(20, 79);
+        p.attributes["Awareness"] = randInt(20, 79);
+        p.attributes["Hitpower"] = randInt(20, 79);
+        p.attributes["Man Coverage"] = randInt(20, 79);
+        p.attributes["Zone Coverage"] = randInt(20, 79);
+    }
+    
+    return p;
+}
+
+// --- Core Game Logic ---
+function switchScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+    document.getElementById(screenId).classList.add('active-screen');
+}
+
+function startGameSetup() { switchScreen('screen-setup'); }
+
+function finalizeSetup() {
+    let tId = parseInt(document.getElementById('setup-team').value);
+    state.teamId = tId;
+    state.skillRating = TEAMS[tId].baseSkill;
+    state.popularity = randInt(500, 1500);
+    state.coachingRating = randInt(3, 8);
+    state.week = 1;
+    state.wins = 0; state.losses = 0;
+    
+    // Generate Preset Roster (15 players)
+    state.roster = [];
+    POSITIONS.forEach(pos => {
+        state.roster.push(generatePlayer(pos));
+        state.roster.push(generatePlayer(pos)); // 2 per pos roughly
+    });
+    
+    // Generate Schedule
+    state.schedule = ["Prep", "Prep", "Prep"]; // Weeks 1-3
+    let opps = [0,1,2,3,4,5,6].filter(id => id !== state.teamId); // 6 opponents
+    opps.push(opps[randInt(0, opps.length-1)]); // add 1 random to make 7 games
+    opps.sort(() => Math.random() - 0.5); // shuffle
+    
+    let byeWeek = randInt(3, 9); // Index for bye week in the 8-week span
+    opps.splice(byeWeek, 0, "BYE"); // Insert bye
+    
+    state.schedule = state.schedule.concat(opps); // Total length 11
+    
+    updateHub();
+    switchScreen('screen-hub');
+    addChatMsg("System", "Welcome coach! Prep weeks 1-3 are open. Ask your players to recruit kids before sign-ups expire.");
+}
+
+function updateHub() {
+    let t = TEAMS[state.teamId];
+    document.getElementById('hub-team-name').innerText = t.name;
+    document.getElementById('hub-skill').innerText = `Skill: ${state.skillRating.toFixed(1)}/10`;
+    document.getElementById('hub-pop').innerText = `Pop: ${state.popularity}`;
+    document.getElementById('hub-coach').innerText = `Coach: ${state.coachingRating}/10`;
+    document.getElementById('record-display').innerText = `Record: ${state.wins}-${state.losses}`;
+    
+    let weekText = "";
+    let oppText = "";
+    
+    if (state.week <= 3) {
+        weekText = `Week ${state.week} (Prep)`;
+        oppText = "Sign-ups & Practice";
+    } else if (state.week <= 11) {
+        weekText = `Week ${state.week} (Regular Season)`;
+        let opp = state.schedule[state.week - 1];
+        oppText = opp === "BYE" ? "BYE WEEK" : `Vs. ${TEAMS[opp].name}`;
+    } else if (state.week === 12) {
+        weekText = `Week 12 (Playoffs)`;
+        oppText = "Playoff Game 1";
+    } else if (state.week === 13) {
+        weekText = `Week 13 (Championship)`;
+        oppText = "THE CHAMPIONSHIP";
+    } else {
+        weekText = "Offseason";
+        oppText = "Season Over";
+    }
+    
+    document.getElementById('hub-week-display').innerText = weekText;
+    document.getElementById('hub-opponent').innerText = oppText;
+    
+    renderRoster();
+}
+
+// --- UI Interactions ---
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+function renderRoster() {
+    let html = "";
+    state.roster.forEach((p, idx) => {
+        let init = p.lastName.charAt(0) + ".";
+        let attrHtml = "";
+        for (let key in p.attributes) {
+            attrHtml += `<div>${key}: ${p.attributes[key]}</div>`;
+        }
+        
+        html += `
+            <div class="player-row" onclick="document.getElementById('details-${idx}').style.display = document.getElementById('details-${idx}').style.display === 'block' ? 'none' : 'block'">
+                <span>${p.position} - ${p.firstName} ${init}</span>
+                <span>OVR: ${p.overall}</span>
+            </div>
+            <div class="player-details" id="details-${idx}">
+                <strong>Full Name:</strong> ${p.firstName} ${p.lastName}<br>
+                <div style="display:flex; flex-wrap:wrap; gap: 10px; margin-top:5px; font-size:12px;">
+                    ${attrHtml}
+                </div>
+            </div>
+        `;
+    });
+    document.getElementById('roster-list').innerHTML = html;
+}
+
+// --- Phone UI System ---
+let currentPhoneTarget = null;
+function checkPhoneName() {
+    let val = document.getElementById('phone-contact').value.toLowerCase().trim();
+    currentPhoneTarget = state.roster.find(p => p.firstName.toLowerCase() === val);
+    document.getElementById('phone-actions').style.display = currentPhoneTarget ? 'block' : 'none';
+}
+
+function addChatMsg(sender, msg) {
+    state.chatLog.push({sender, msg});
+    let box = document.getElementById('chat-history');
+    let css = sender === "Coach" ? "msg-coach" : "msg-player";
+    box.innerHTML += `<div class="chat-msg ${css}"><strong>${sender}:</strong> ${msg}</div>`;
+    box.scrollTop = box.scrollHeight;
+}
+
+function sendText(type) {
+    if(!currentPhoneTarget) return;
+    let pName = currentPhoneTarget.firstName;
+    
+    if (type === 'recruit') {
+        addChatMsg("Coach", `Hey ${pName}, can you ask some friends about joining the team?`);
+        if (state.week > 3) {
+            setTimeout(() => addChatMsg(pName, "Coach, sign-ups expired already! It's past prep weeks."), 1000);
+        } else {
+            // High chance no one, max 4
+            setTimeout(() => {
+                let chance = Math.random();
+                if (chance < 0.7) { // 70% chance no one
+                    addChatMsg(pName, "I asked around but no one wants to sign up.");
+                } else {
+                    let num = randInt(1, 4);
+                    addChatMsg(pName, `Yeah! I got ${num} of my friends to pay and sign up!`);
+                    for(let i=0; i<num; i++) state.roster.push(generatePlayer());
+                    state.popularity += (num * 10);
+                    renderRoster(); // Update UI
+                }
+            }, 1000);
+        }
+    } else if (type === 'role') {
+        addChatMsg("Coach", `Hey ${pName}, let's talk about your role on the team.`);
+        setTimeout(() => addChatMsg(pName, "Okay coach, I'll do whatever it takes to win."), 1000);
+    } else if (type === 'praise') {
+        addChatMsg("Coach", `Great work at practice, ${pName}!`);
+        setTimeout(() => addChatMsg(pName, "Thanks coach! I appreciate it."), 1000);
+        state.popularity += 5;
+    }
+}
+
+// Random player texts
+function triggerRandomPlayerText() {
+    if (state.roster.length === 0 || Math.random() > 0.4) return; // 40% chance
+    let p = state.roster[randInt(0, state.roster.length-1)];
+    let texts = [
+        "Im not happy with my spot.",
+        "Im going to quit the team.",
+        "I got in trouble at school."
+    ];
+    let msg = texts[randInt(0, texts.length-1)];
+    addChatMsg(p.firstName, msg);
+}
+
+
+// --- Advance Week & Sim Logic ---
+function advanceWeek() {
+    if (state.week > 13) {
+        alert("The season is over!");
+        return;
+    }
+
+    if (state.week <= 3) {
+        // Prep week finish
+        triggerRandomPlayerText();
+        state.week++;
+        updateHub();
+        return;
+    }
+
+    // Game Logic
+    let opp = null;
+    if (state.week <= 11) opp = state.schedule[state.week - 1];
+    else if (state.week === 12) opp = "PLAYOFF"; // placeholder logic
+    else if (state.week === 13) opp = "CHAMPIONSHIP";
+
+    if (opp === "BYE") {
+        showModal("Bye Week", "The team rests up. No game this week.");
+        state.week++;
+        return;
+    }
+
+    // Run Sim
+    simGame(opp);
+}
+
+function simGame(oppCode) {
+    // 1. Check for random scenario popup during sim
+    let scenarios = [
+        "1st and goal: Your offense punched it in!",
+        "Injury: One of your starters went down hard.",
+        "Players got into a fight on the sideline! Penalty given.",
+        "Player cannot show up to a game today due to family reasons."
+    ];
+    let scenarioText = "";
+    if (Math.random() > 0.5) { // 50% chance a scenario happens during game
+        scenarioText = "<br><br><strong>In-Game Event:</strong> " + scenarios[randInt(0, scenarios.length-1)];
+    }
+
+    // 2. Decide winner simply by comparing random offsets
+    let myScore = randInt(0, 3) * 7;
+    let theirScore = randInt(0, 3) * 7;
+    
+    // apply slight edge based on skill rating
+    if (state.skillRating > 4.0) myScore += 7;
+    
+    // Prevent ties
+    if (myScore === theirScore) myScore += 7;
+
+    let oppName = (oppCode === "PLAYOFF" || oppCode === "CHAMPIONSHIP") ? "Opponent" : TEAMS[oppCode].name;
+    
+    let result = myScore > theirScore ? "WON" : "LOST";
+    if (result === "WON") state.wins++;
+    else state.losses++;
+    
+    showModal(`Game Result: ${result}`, `Final Score: Us ${myScore} - ${oppName} ${theirScore} ${scenarioText}`);
+    
+    triggerRandomPlayerText();
+    state.week++;
+}
+
+// --- Modal & Save/Load ---
+function showModal(title, desc) {
+    document.getElementById('modal-title').innerText = title;
+    document.getElementById('modal-desc').innerHTML = desc;
+    document.getElementById('game-modal').style.display = 'flex';
+}
+function closeModal() {
+    document.getElementById('game-modal').style.display = 'none';
+    updateHub();
+}
+
+function saveGame() {
+    try {
+        localStorage.setItem('jrFootball26Save', JSON.stringify(state));
+        alert("Progress saved!");
+    } catch(e) {
+        alert("Error saving game data.");
+    }
+}
+
+function loadGame() {
+    try {
+        let saved = localStorage.getItem('jrFootball26Save');
+        if (saved) {
+            state = JSON.parse(saved);
+            updateHub();
+            
+            // Reload chat
+            document.getElementById('chat-history').innerHTML = "";
+            state.chatLog.forEach(log => {
+                let css = log.sender === "Coach" ? "msg-coach" : "msg-player";
+                document.getElementById('chat-history').innerHTML += `<div class="chat-msg ${css}"><strong>${log.sender}:</strong> ${log.msg}</div>`;
+            });
+            
+            switchScreen('screen-hub');
+        } else {
+            alert("No saved game found.");
+        }
+    } catch(e) {
+        alert("Error loading game.");
+    }
+}
+</script>
+</body>
+</html>
